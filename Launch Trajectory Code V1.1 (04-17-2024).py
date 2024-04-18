@@ -5,6 +5,7 @@
 # - (4/16) Added stage mass fraction range to mass calculations
 # - (4/16) Included multiple simulations across all MR values, print range of trajectories
 # - (4/17) Improved user interface for increased functionality
+# - (4/17) Added plots of trajectory & overall mass fraction versus maximum altitude achieved
 
 
 
@@ -14,6 +15,7 @@
 import math
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 # Rocket motor characteristics
 O50SXL_P = [69.1, 9737000, 140802]             # stage 1, performance values -> [ burn time (s), total impulse (lbf-sec), burn time average thrust (lbf) ]
@@ -289,6 +291,11 @@ t_at_exo2 = [0.0] * num_MRs # time to return to atmosphere
 t_crash = [0.0] * num_MRs   # time of rocet crash (return to h=0)
 MR_values = []              # list of stage mass fractions used in simulation
 
+# Plotting data
+h_vals = []   # plot trajectory for single value simulations
+t_vals = []   # " "
+MRo_vals = [] # overall vehicle mass fraction -> used to plot h_max vs. MR
+
 # Run simulation
 for mr_1 in MR_1:
     for mr_2 in MR_2:
@@ -312,9 +319,11 @@ for mr_1 in MR_1:
             m_s3_o = mr_3/(mr_3 - 1) * O38_W[1]    # stage three " "
             m_s3_f = 1/(mr_3 - 1) * O38_W[1]       # stage three " "
             m0 = m_s1_o + m_s2_o + m_s3_o          # full rocket initial mass
-            
-            m = m0                               # initialize mass
-            MR_values.append([mr_1, mr_2, mr_3]) # save current stage mass fractions
+                      
+            # save values
+            m = m0 + pl                                # initialize mass (initial rocket mass + payload mass)
+            MR_values.append([mr_1, mr_2, mr_3])       # save current stage mass fractions
+            MRo_vals.append( (m0+pl) / (m_s3_f + pl) ) # overall vehicle mass fraction -> intial mass / final mass
             
             # Run simulation
             while (t <= t_max):
@@ -409,6 +418,11 @@ for mr_1 in MR_1:
                 elif h > 100e3:
                         t_at_exo2[i] = t
                         
+                # current altitude (single mass fraction only)
+                if num_MRs == 1:          # only plot if one mass fraction is input
+                    h_vals.append(h/1000) # save current h value (in km)
+                    t_vals.append(t)      # save time (in s)
+                        
                 
                 # Print current data (optional)
                 print_progress(print_progress_bool) # toggle on/off to print simulation progress at each timestep (turn off for speed)
@@ -448,3 +462,19 @@ print("  Apogee time:          " + str("{:.2f}".format( t_at_max[index] )) + "s"
 print("  Mach:                 " + str("{:.3f}".format( M_max[index] )) + " (" + str("{:.3f}".format( M_min[index] )) + ")")                                                              # maximum Mach number on ascension (and descension)
 print("  Space flight:         " + str("{:.2f}".format( t_at_exo1[index] )) + "s" + " (" + str("{:.2f}".format( t_at_exo2[index] )) + "s)")                                               # time to escape (and return to) atmosphere
 print("  Crash time:           " + str("{:.2f}".format( t_crash[index] )) + "s")                                                                                                          # time to return to starting height
+
+
+
+# VI. PLOT RESULTS
+if num_MRs == 1: # overall trajectory (single mass fraction value only)
+    plt.plot(t_vals, h_vals)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Altitude (km)')
+    plt.title('Vehicle Trajectory')
+    plt.show()
+else:            # vehicle mass fraction vs altitude
+    plt.scatter(MRo_vals, array_conversion(h_max, 1e-3), c="blue") # convert to km, plot as scatter plot
+    plt.xlabel('Combiend Mass Fraction (m0/mf)')
+    plt.ylabel('Maximum Altitude (km)')
+    plt.title('Overall Rocket Performance')
+    plt.show()
